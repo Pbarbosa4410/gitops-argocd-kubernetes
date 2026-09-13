@@ -1,0 +1,96 @@
+name: GitOps CI
+
+on:
+  push:
+    branches:
+      - main
+
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  kustomize:
+    name: Validar Kustomize
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Configurar kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: "v1.34.0"
+
+      - name: Renderizar base
+        run: |
+          kubectl kustomize apps/demo/base > /tmp/base.yaml
+          test -s /tmp/base.yaml
+
+      - name: Renderizar overlay dev
+        run: |
+          kubectl kustomize apps/demo/overlays/dev > /tmp/dev.yaml
+          test -s /tmp/dev.yaml
+
+      - name: Exibir manifests renderizados
+        run: |
+          echo "Base:"
+          cat /tmp/base.yaml
+
+          echo "Overlay DEV:"
+          cat /tmp/dev.yaml
+
+  helm:
+    name: Validar Helm
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Configurar Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: "v3.17.0"
+
+      - name: Helm lint
+        run: helm lint helm/demo
+
+      - name: Renderizar Helm Chart
+        run: |
+          helm template demo helm/demo > /tmp/helm.yaml
+          test -s /tmp/helm.yaml
+
+      - name: Exibir manifests Helm
+        run: cat /tmp/helm.yaml
+
+  argocd:
+    name: Validar ArgoCD
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Configurar kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: "v1.34.0"
+
+      - name: Validar AppProject
+        run: |
+          kubectl apply \
+            --dry-run=client \
+            --validate=false \
+            -f argocd/projects/dev-project.yaml
+
+      - name: Validar Application
+        run: |
+          kubectl apply \
+            --dry-run=client \
+            --validate=false \
+            -f argocd/applications/demo-app.yaml

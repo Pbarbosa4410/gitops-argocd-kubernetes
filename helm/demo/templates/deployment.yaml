@@ -1,0 +1,60 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}-demo-app
+  labels:
+    app: {{ .Values.labels.app }}
+    app.kubernetes.io/name: demo-app
+    app.kubernetes.io/part-of: {{ .Values.labels.partOf }}
+    app.kubernetes.io/managed-by: {{ .Values.labels.managedBy }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+
+  selector:
+    matchLabels:
+      app: {{ .Values.labels.app }}
+
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.labels.app }}
+        app.kubernetes.io/name: demo-app
+        app.kubernetes.io/part-of: {{ .Values.labels.partOf }}
+        app.kubernetes.io/managed-by: {{ .Values.labels.managedBy }}
+
+    spec:
+      containers:
+        - name: demo-app
+
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.targetPort }}
+              protocol: TCP
+
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.readinessProbe.path }}
+              port: http
+
+            initialDelaySeconds: {{ .Values.readinessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.readinessProbe.periodSeconds }}
+
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.livenessProbe.path }}
+              port: http
+
+            initialDelaySeconds: {{ .Values.livenessProbe.initialDelaySeconds }}
+            periodSeconds: {{ .Values.livenessProbe.periodSeconds }}
+
+          resources:
+            requests:
+              cpu: {{ .Values.resources.requests.cpu | quote }}
+              memory: {{ .Values.resources.requests.memory | quote }}
+
+            limits:
+              cpu: {{ .Values.resources.limits.cpu | quote }}
+              memory: {{ .Values.resources.limits.memory | quote }}

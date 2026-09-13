@@ -1,0 +1,36 @@
+# Kubernetes
+kubeconfig
+*.kubeconfig
+
+# ArgoCD
+argocd-password.txt
+
+# Helm
+*.tgz
+charts/
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Secrets
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+
+# Logs
+*.log
+
+# Temporary files
+tmp/
+temp/
+
+# VS Code
+.vscode/
+
+# Operating system
+.DS_Store
+Thumbs.db

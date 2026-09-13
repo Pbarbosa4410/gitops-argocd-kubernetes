@@ -1,0 +1,18 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: dev
+
+resources:
+  - ../../base
+
+namePrefix: dev-
+
+replicas:
+  - name: demo-app
+    count: 2
+
+labels:
+  - pairs:
+      environment: dev
+      app.kubernetes.io/environment: dev
