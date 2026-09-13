@@ -76,21 +76,64 @@ jobs:
       - name: Checkout do código
         uses: actions/checkout@v4
 
-      - name: Configurar kubectl
-        uses: azure/setup-kubectl@v4
+      - name: Configurar Python
+        uses: actions/setup-python@v5
         with:
-          version: "v1.34.0"
+          python-version: "3.12"
 
-      - name: Validar AppProject
+      - name: Instalar PyYAML
         run: |
-          kubectl apply \
-            --dry-run=client \
-            --validate=false \
-            -f argocd/projects/dev-project.yaml
+          python -m pip install --upgrade pip
+          pip install pyyaml
 
-      - name: Validar Application
+      - name: Validar YAML do AppProject
         run: |
-          kubectl apply \
-            --dry-run=client \
-            --validate=false \
-            -f argocd/applications/demo-app.yaml
+          python - <<'PY'
+          import yaml
+
+          path = "argocd/projects/dev-project.yaml"
+
+          with open(path, encoding="utf-8") as file:
+              manifest = yaml.safe_load(file)
+
+          assert manifest["apiVersion"] == "argoproj.io/v1alpha1"
+          assert manifest["kind"] == "AppProject"
+          assert manifest["metadata"]["name"] == "dev-project"
+          assert manifest["metadata"]["namespace"] == "argocd"
+          assert "spec" in manifest
+          assert manifest["spec"]["sourceRepos"]
+          assert manifest["spec"]["destinations"]
+
+          print("AppProject válido.")
+          PY
+
+      - name: Validar YAML da Application
+        run: |
+          python - <<'PY'
+          import yaml
+
+          path = "argocd/applications/demo-app.yaml"
+
+          with open(path, encoding="utf-8") as file:
+              manifest = yaml.safe_load(file)
+
+          assert manifest["apiVersion"] == "argoproj.io/v1alpha1"
+          assert manifest["kind"] == "Application"
+          assert manifest["metadata"]["name"] == "demo-app"
+          assert manifest["metadata"]["namespace"] == "argocd"
+
+          spec = manifest["spec"]
+
+          assert spec["project"] == "dev-project"
+          assert spec["source"]["repoURL"]
+          assert spec["source"]["targetRevision"] == "main"
+          assert spec["source"]["path"] == "apps/demo/overlays/dev"
+          assert spec["destination"]["namespace"] == "dev"
+
+          automated = spec["syncPolicy"]["automated"]
+
+          assert automated["prune"] is True
+          assert automated["selfHeal"] is True
+
+          print("Application ArgoCD válida.")
+          PY
