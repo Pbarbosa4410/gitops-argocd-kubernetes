@@ -132,6 +132,8 @@ gitops-argocd-kubernetes/
 │       └── values.yaml
 │
 ├── docs/
+│   ├── images/
+│   │   └── argocd-synced-healthy.png
 │   └── architecture.md
 │
 ├── .gitignore
@@ -414,23 +416,23 @@ helm template demo helm/demo
 
 ## CI — ArgoCD
 
-Os manifests ArgoCD são avaliados através de dry-run:
+Os manifests ArgoCD são validados de forma offline no pipeline.
 
-```bash
-kubectl apply \
-  --dry-run=client \
-  --validate=false \
-  -f argocd/projects/dev-project.yaml
-```
+O CI verifica:
 
-e:
+- `apiVersion`;
+- `kind`;
+- metadata;
+- projeto;
+- repositório;
+- branch;
+- path;
+- namespace;
+- política de sincronização;
+- `prune`;
+- `selfHeal`.
 
-```bash
-kubectl apply \
-  --dry-run=client \
-  --validate=false \
-  -f argocd/applications/demo-app.yaml
-```
+Essa abordagem evita dependência de um cluster Kubernetes dentro do GitHub Actions.
 
 ---
 
@@ -511,13 +513,20 @@ make --version
 
 ## Instalando o ArgoCD em um cluster
 
-Quando houver um cluster Kubernetes disponível, crie o namespace:
+Crie o namespace:
 
 ```bash
 kubectl create namespace argocd
 ```
 
-Instale os manifests oficiais do ArgoCD conforme a documentação oficial.
+Instale o ArgoCD:
+
+```bash
+kubectl apply -n argocd \
+  --server-side \
+  --force-conflicts \
+  -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+```
 
 Depois valide:
 
@@ -552,6 +561,19 @@ kubectl get applications -n argocd
 ## Validando a aplicação
 
 Após a sincronização:
+
+```bash
+kubectl get application demo-app -n argocd
+```
+
+Resultado esperado:
+
+```text
+NAME       SYNC STATUS   HEALTH STATUS
+demo-app   Synced        Healthy
+```
+
+Também é possível validar os recursos implantados:
 
 ```bash
 kubectl get pods -n dev
@@ -631,7 +653,7 @@ kubectl scale deployment dev-demo-app \
 
 O estado fica diferente do Git.
 
-O ArgoCD poderá detectar o drift e, devido a:
+O ArgoCD pode detectar o drift e, devido a:
 
 ```text
 selfHeal: true
@@ -682,6 +704,60 @@ O projeto demonstra:
 - configuração versionada;
 - rastreabilidade;
 - rollback baseado em Git.
+
+---
+
+## Evidência do GitOps com ArgoCD
+
+A aplicação `demo-app` foi sincronizada com sucesso pelo ArgoCD utilizando o repositório Git como fonte única da verdade.
+
+O ambiente foi validado com:
+
+- status `Healthy`;
+- status `Synced`;
+- sincronização automática habilitada;
+- Deployment gerenciado pelo ArgoCD;
+- Service Kubernetes;
+- ReplicaSet;
+- duas réplicas da aplicação em execução.
+
+A visualização abaixo mostra a árvore completa dos recursos Kubernetes gerenciados pelo ArgoCD:
+
+![ArgoCD Synced Healthy](docs/images/argocd-synced-healthy.png)
+
+---
+
+## Resultado validado
+
+O laboratório foi executado em um cluster Kubernetes local utilizando Kind.
+
+A validação final confirmou:
+
+```text
+Application: demo-app
+Sync Status: Synced
+Health Status: Healthy
+Namespace: dev
+Replicas: 2
+Service: ClusterIP
+```
+
+Os recursos gerenciados pelo ArgoCD incluíram:
+
+```text
+Application
+   |
+   +-- Service
+   |
+   +-- Deployment
+          |
+          +-- ReplicaSet
+                 |
+                 +-- Pod
+                 +-- Pod
+```
+
+Isso demonstra o fluxo GitOps completo, desde o código armazenado no GitHub até a reconciliação automática realizada pelo ArgoCD no cluster Kubernetes.
 
 ---
 
